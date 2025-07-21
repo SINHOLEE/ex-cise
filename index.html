@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>편평등 교정 루틴</title>
+<style>
+:root { --main:#0d6efd; --gray:#ddd; font-family:system-ui,sans-serif }
+body{margin:0;padding:20px;max-width:600px}
+h1{margin-top:0}
+section{margin:24px 0 32px 0;padding:16px;border:1px solid var(--gray);border-radius:8px}
+button{padding:6px 14px;margin:4px 4px 8px 0;border:none;border-radius:4px;background:var(--main);color:#fff;cursor:pointer;font-size:1rem}
+button[disabled]{opacity:0.5;cursor:not-allowed}
+progress{width:100%;height:12px}
+.small{color:#666;font-size:0.93em}
+.status{display:flex;gap:16px;margin-bottom:6px;}
+.timer-area{margin:0 0 8px 0;display:inline-flex;align-items:center;gap:7px;}
+.timer-count{font-weight:bold;font-size:18px;width:45px;display:inline-block;}
+.timer-rest{color:#888;font-size:1em;}
+.timer-btn{background:#198754; color:#fff;}
+.timer-btn[disabled]{background:#bbb;}
+@media(max-width:500px){
+  body{padding:7px;}
+  section{padding:8px;}
+  button{font-size:.94rem;}
+}
+</style>
+</head>
+<body>
+
+<h1>편평등 교정 · 7단계 루틴</h1>
+<progress id="overall" value="0" max="7"></progress>
+<div class="small" style="margin-top:10px;line-height:1.6">
+※ <b>좌/우 운동</b>은 한 쪽씩 버튼을 눌러 진행해 주세요.<br>
+<font color="#0d6efd">타이머가 있는 운동</font>은 <b>시작</b> 버튼을 누르세요.<br>
+운동명 클릭 시 해당 영상 구간으로 이동합니다.
+</div>
+<div id="routine"></div>
+
+<script>
+const routine = [
+  {
+    name:"기립근 스트레칭",
+    sets:3, info:"30초 × 3번",
+    yt:{start:73, end:198, time:"1:13"},
+    timed:30,           // 30초 타이머
+    doubleSided:false
+  },
+  {
+    name:"흉추관절 가동술",
+    sets:3, info:"20회 × 3세트",
+    yt:{start:198, end:303, time:"3:18"},
+    doubleSided:true
+  },
+  {
+    name:"캣카우 동작",
+    sets:3, info:"20회 × 3세트",
+    yt:{start:303, end:422, time:"5:03"},
+    doubleSided:false
+  },
+  {
+    name:"햄스트링 스트레칭",
+    sets:3, info:"60초 × 3번",
+    yt:{start:422, end:550, time:"7:02"},
+    timed:60,          // 60초 타이머
+    doubleSided:true
+  },
+  {
+    name:"복근 스트레칭",
+    sets:3, info:"60초 × 3번",
+    yt:{start:550, end:650, time:"9:10"},
+    timed:60,         // 60초 타이머
+    doubleSided:false
+  },
+  {
+    name:"슈퍼맨 운동",
+    sets:3, info:"60초 × 3번",
+    yt:{start:650, end:728, time:"10:50"},
+    timed:60,         // 60초 타이머
+    doubleSided:false
+  },
+  {
+    name:"골반전방경사운동",
+    sets:30, info:"10초 × 30번",
+    yt:{start:728, end:0, time:"12:08"},
+    timed:10,         // 10초 타이머
+    doubleSided:false
+  }
+];
+
+const YT_ID = "NO1mncOrbdI";
+const root = document.getElementById("routine");
+
+// ---- 타이머 구현 함수 ----
+function createTimer(sec, onfinish) {
+  let tid = null, left = sec;
+  const area = document.createElement("div");
+  area.className = 'timer-area';
+  area.innerHTML = `
+    <button class="timer-btn">시작</button>
+    <span class="timer-count">${sec}</span><span class="timer-rest">초</span>
+  `;
+  const btn = area.querySelector(".timer-btn");
+  const count = area.querySelector(".timer-count");
+  let running = false;
+  btn.addEventListener("click", function() {
+    if(running) return;
+    running = true;
+    btn.disabled = true;
+    left = sec;
+    count.textContent = left;
+    tid = setInterval(()=>{
+      left--;
+      count.textContent = left;
+      if(left <= 0){
+        clearInterval(tid);
+        running = false;
+        btn.disabled = false;
+        count.textContent = "끝";
+        if (typeof onfinish === "function") onfinish();
+        setTimeout(()=>{count.textContent = sec;}, 1300);
+      }
+    }, 1000);
+  });
+  return area;
+}
+
+routine.forEach((ex, idx) => {
+  const sec = document.createElement("section");
+  const nameAnchor =
+    `<a href="https://www.youtube.com/watch?v=${YT_ID}&t=${ex.yt.start}s"
+        target="_blank" rel="noopener"
+        style="color:var(--main);text-decoration:underline;">${ex.name}</a>`;
+  let html = `
+    <h3 style="margin-bottom:4px">${idx+1}. ${nameAnchor}
+      <span class="small" style="margin-left:7px">${ex.yt.time}</span>
+      ${ex.doubleSided?'<span class="small" style="margin-left:6px">(좌/우 각각)</span>':''}
+    </h3>
+    <div class="small" style="margin-bottom:6px">${ex.info}</div>
+    <iframe width="100%" height="200"
+      src="https://www.youtube.com/embed/${YT_ID}?start=${ex.yt.start}${ex.yt.end ? `&end=${ex.yt.end}` : ''}"
+      title="${ex.name}" frameborder="0" allowfullscreen></iframe>
+  `;
+
+  // 타이머 삽입
+  if (ex.timed) html += `<div id="timer-wrap-${idx}"></div>`;
+
+  // 버튼/상태구현
+  if(ex.doubleSided){
+    html += `
+      <div class="status">
+        <div>
+          <button data-i="${idx}" data-side="left">좌측 완료</button>
+          <span id="stat-${idx}-left" class="small">0 / ${ex.sets}</span>
+        </div>
+        <div>
+          <button data-i="${idx}" data-side="right">우측 완료</button>
+          <span id="stat-${idx}-right" class="small">0 / ${ex.sets}</span>
+        </div>
+      </div>
+    `;
+  } else {
+    html += `
+      <div style="margin-bottom:6px">
+        <button data-i="${idx}">완료</button>
+        <span id="stat-${idx}" class="small">0 / ${ex.sets}</span>
+      </div>
+    `;
+  }
+  sec.innerHTML = html;
+  root.appendChild(sec);
+
+  // 타이머 DOM 삽입+기능 추가
+  if (ex.timed) {
+    const timerArea = createTimer(ex.timed);
+    sec.querySelector(`#timer-wrap-${idx}`).appendChild(timerArea);
+  }
+});
+
+const overall = document.getElementById("overall");
+
+root.addEventListener("click", e => {
+  // double sided
+  if(e.target.matches("button[data-side]")){
+    const i = +e.target.dataset.i;
+    const side = e.target.dataset.side; //'left'|'right'
+    let ex = routine[i];
+    ex[side] = (ex[side]||0)+1;
+    const btn = e.target;
+    if(ex[side]>=ex.sets){
+      btn.disabled=true;
+      btn.textContent = side==="left"?"좌측 완료!":"우측 완료!";
+    }
+    document.getElementById(`stat-${i}-${side}`).textContent =
+      `${ex[side]} / ${ex.sets}`;
+    // doubleSided: 둘 다 완료됐을때만 완료 인정
+    overall.value = routine.filter(r =>
+      r.doubleSided
+         ? ((r.left||0) >= r.sets && (r.right||0) >= r.sets)
+         : (r.done||0) >= r.sets
+    ).length;
+    return;
+  }
+  // single sided
+  if(e.target.matches("button[data-i]:not([data-side])")){
+    const i = +e.target.dataset.i;
+    let ex = routine[i];
+    ex.done = (ex.done||0)+1;
+    if(ex.done>=ex.sets){
+      e.target.disabled=true;
+      e.target.textContent = "완료!";
+    }
+    document.getElementById(`stat-${i}`).textContent =
+      `${ex.done} / ${ex.sets}`;
+    overall.value = routine.filter(r =>
+      r.doubleSided
+         ? ((r.left||0) >= r.sets && (r.right||0) >= r.sets)
+         : (r.done||0) >= r.sets
+    ).length;
+    return;
+  }
+});
+</script>
+</body>
+</html>
